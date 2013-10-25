@@ -2,6 +2,7 @@
 #include "GameWindow.h"
 #include "Camera.h"
 #include <time.h>
+#include "RedeTcp.h"
 
 
 CCamera objCamera; 
@@ -21,7 +22,7 @@ float view = 0.0f;
 float posicao[] = {0.0, 0.0, 0.0, 1.0};
 // Speed sum
 float speed = 0.00005f;
-/* [0]- Game Run [1]- GameOver  [-1]-Pause */
+/* [0]- Game Run [1]- GameOver  [-1]-Pause [2]-Loading Network*/
 int gameState; 
 
 
@@ -37,7 +38,7 @@ void Game::setup()
 	glHint (GL_LINE_SMOOTH_HINT, GL_NICEST);
 	//glEnable(GL_BLEND); 
 	
-	gameState = 1;
+	gameState = 2;
 	rotate = 0.0f;
 	
 	glLightModeli(GL_LIGHT_MODEL_LOCAL_VIEWER, GL_FALSE);
@@ -74,7 +75,27 @@ void Game::setup()
 	objCamera.Position_Camera(0, -0.5f, 2,  0, 0, 0,  0, 0, 0.5);
 	srand(time(0));
 	generateMap();
+	RedeTcp* tcp = new RedeTcp();
 
+	printf("conectando em um servidor\n");
+	if(!tcp->connectServer("127.0.0.1",8280)) {
+		printf("server nao encontrado ...\n");
+		
+	}
+	char receiveBuff[255];
+		int a = 0;
+	while(a < 500) {
+		tcp->update();
+		if(tcp->receiveMessage(receiveBuff,sizeof(receiveBuff))) {
+			printf("mensagem recebida: [%s]\n",receiveBuff);
+			a++;
+		}
+	}
+
+	printf("desconectando\n");
+	if (tcp->disconnect())
+		printf("Desconectado\n");
+	delete(tcp);
 }
 
 void Game::processEvents(const SDL_Event& event)

@@ -38,7 +38,7 @@ void Game::setup()
 	glHint (GL_LINE_SMOOTH_HINT, GL_NICEST);
 	//glEnable(GL_BLEND); 
 	
-	gameState = 2;
+	gameState = 1;
 	rotate = 0.0f;
 	
 	glLightModeli(GL_LIGHT_MODEL_LOCAL_VIEWER, GL_FALSE);
@@ -75,26 +75,42 @@ void Game::setup()
 	objCamera.Position_Camera(0, -0.5f, 2,  0, 0, 0,  0, 0, 0.5);
 	srand(time(0));
 	generateMap();
+
+	float posicoes[3][3];
+
 	RedeTcp* tcp = new RedeTcp();
 
 	printf("conectando em um servidor\n");
 	if(!tcp->connectServer("127.0.0.1",8280)) {
-		printf("server nao encontrado ...\n");
-		
+		printf("nao encontrou... indo embora!\n");
+		//return 0;
 	}
 	char receiveBuff[255];
-		int a = 0;
-	while(a < 500) {
+	short int aux;
+	unsigned short int pos = 0;
+
+	printf("encontrou, buscando a mensagem...\n");
+
+	while(1) {
 		tcp->update();
 		if(tcp->receiveMessage(receiveBuff,sizeof(receiveBuff))) {
-			printf("mensagem recebida: [%s]\n",receiveBuff);
-			a++;
+			//printf("mensagem recebida: [%s]\n",receiveBuff);
+			for(int a = 0; a < 3; a++) {
+				for(int b = 0; b < 3; b++) {
+					memcpy(&aux,receiveBuff+pos,sizeof(short int));
+					pos += sizeof(short int);
+					printf("mensagem recebida: %d\n",aux);
+				}
+			}
+			break;
 		}
+
+
 	}
 
 	printf("desconectando\n");
-	if (tcp->disconnect())
-		printf("Desconectado\n");
+	tcp->disconnect();
+
 	delete(tcp);
 }
 

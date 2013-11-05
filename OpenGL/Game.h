@@ -26,7 +26,7 @@ class Game : public GameSteps
 		void colision();
 		void updateMap();
 		void updateRotation();
-		void receiveMap(tVector3 _buffer[30]);
+		void receiveMap(int v);
 };
 
 #endif // ROTATINGTRIANGLE_H_INCLUDED

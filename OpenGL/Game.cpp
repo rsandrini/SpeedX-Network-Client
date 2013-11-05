@@ -24,6 +24,7 @@ float posicao[] = {0.0, 0.0, 0.0, 1.0};
 float speed = 0.00005f;
 /* [0]-GameOver [1]-Game Run  [-1]-Pause [2]-Loading Network*/
 int gameState; 
+float timeToUpdateMap=0;
 
 // NEtwork
 RedeTcp* tcp = new RedeTcp();
@@ -86,8 +87,8 @@ void Game::setup()
 	}
 	else{
 		printf("conectado, buscando mapa...\n");
-		receiveMap(buffer);	
-		receiveMap(color);	
+		receiveMap(1);	
+		receiveMap(2);	
 
 		printf("Mapa recebido - Iniciando spectator \n");
 		gameState = 1;
@@ -95,14 +96,13 @@ void Game::setup()
 
 }
 
-void Game::receiveMap(tVector3 _buffer[30]){
+void Game::receiveMap(int v){
 	char receiveBuff[255];
 	//short int aux;
 	float aux;
 	short int fim = 1;
 	char sendBuff[10];
-	unsigned short int pos = 0;
-	int ctrlLoop = 0;
+	
 	int partMap = 0;
 	int aSCont = 0;
 	// Recebendo map
@@ -111,30 +111,37 @@ void Game::receiveMap(tVector3 _buffer[30]){
 		if(tcp->receiveMessage(receiveBuff, sizeof(receiveBuff))) {
 			partMap ++;
 			int cont=1;
-				
-			for(int b = ctrlLoop; b < (ctrlLoop+30); b++) {
+			unsigned short int pos = 0;	
+			for(int b = 0; b < 30; b++) {
 				printf (".");
 				memcpy(&aux,receiveBuff+pos,sizeof(float));
 				pos += sizeof(float);
-				if (cont == 1)
-					_buffer[aSCont].x = (float)aux / 1000;
-				else if (cont == 2)
-					_buffer[aSCont].y = (float)aux / 1000;
-				else
-					_buffer[aSCont].z = (float)aux / 1000;
-						
+				if (v==1){
+					if (cont == 1)
+						buffer[aSCont].x = (float)aux / 1000;
+					else if (cont == 2)
+						buffer[aSCont].y = (float)aux / 1000;
+					else
+						buffer[aSCont].z = (float)aux / 1000;
+				}
+				else{
+					if (cont == 1)
+						color[aSCont].x = (float)aux / 1000;
+					else if (cont == 2)
+						color[aSCont].y = (float)aux / 1000;
+					else
+						color[aSCont].z = (float)aux / 1000;
+				}
 				cont++;
 				if (cont > 3){
 					cont = 1;
 					aSCont ++;
 				}
-
 			}
 
-			memcpy(&fim,sendBuff+0,sizeof(short int));
+			memcpy(&fim,sendBuff,sizeof(short int));
 			tcp->sendMessage(sendBuff,sizeof(short int));
 			printf("%i of 3 map received \n", partMap);
-			ctrlLoop = ctrlLoop+30;
 			if (partMap == 3)
 				break;
 		}
@@ -143,8 +150,13 @@ void Game::receiveMap(tVector3 _buffer[30]){
 
 void Game::updateMap()
 {
-	receiveMap(buffer);	
-	receiveMap(color);	
+	timeToUpdateMap++;
+	if (timeToUpdateMap > 10){
+		receiveMap(1);	
+		receiveMap(2);	
+		timeToUpdateMap = 0;
+	}
+	
 }
 
 void Game::updateRotation()

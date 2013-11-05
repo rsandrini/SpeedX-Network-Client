@@ -22,9 +22,11 @@ float view = 0.0f;
 float posicao[] = {0.0, 0.0, 0.0, 1.0};
 // Speed sum
 float speed = 0.00005f;
-/* [0]- Game Run [1]- GameOver  [-1]-Pause [2]-Loading Network*/
+/* [0]-GameOver [1]-Game Run  [-1]-Pause [2]-Loading Network*/
 int gameState; 
 
+// NEtwork
+RedeTcp* tcp = new RedeTcp();
 
 void Game::setup()
 {
@@ -38,7 +40,7 @@ void Game::setup()
 	glHint (GL_LINE_SMOOTH_HINT, GL_NICEST);
 	//glEnable(GL_BLEND); 
 	
-	gameState = 1;
+	gameState = 2;
 	rotate = 0.0f;
 	
 	glLightModeli(GL_LIGHT_MODEL_LOCAL_VIEWER, GL_FALSE);
@@ -74,45 +76,91 @@ void Game::setup()
 	glLoadIdentity();
 	objCamera.Position_Camera(0, -0.5f, 2,  0, 0, 0,  0, 0, 0.5);
 	srand(time(0));
-	generateMap();
+	//generateMap();
 
-	float posicoes[3][3];
-
-	RedeTcp* tcp = new RedeTcp();
 
 	printf("conectando em um servidor\n");
 	if(!tcp->connectServer("127.0.0.1",8280)) {
-		printf("nao encontrou... indo embora!\n");
+		printf("server nao encontrado...\n");
 		//return 0;
 	}
-	char receiveBuff[255];
-	short int aux;
-	unsigned short int pos = 0;
+	else{
+		printf("conectado, buscando mapa...\n");
+		receiveMap(buffer);	
+		receiveMap(color);	
 
-	printf("encontrou, buscando a mensagem...\n");
-
-	while(1) {
-		tcp->update();
-		if(tcp->receiveMessage(receiveBuff,sizeof(receiveBuff))) {
-			//printf("mensagem recebida: [%s]\n",receiveBuff);
-			for(int a = 0; a < 3; a++) {
-				for(int b = 0; b < 3; b++) {
-					memcpy(&aux,receiveBuff+pos,sizeof(short int));
-					pos += sizeof(short int);
-					printf("mensagem recebida: %d\n",aux);
-				}
-			}
-			break;
-		}
-
-
+		printf("Mapa recebido - Iniciando spectator \n");
+		gameState = 1;
 	}
 
-	printf("desconectando\n");
-	tcp->disconnect();
-
-	delete(tcp);
 }
+
+void Game::receiveMap(tVector3 _buffer[30]){
+	char receiveBuff[255];
+	//short int aux;
+	float aux;
+	short int fim = 1;
+	char sendBuff[10];
+	unsigned short int pos = 0;
+	int ctrlLoop = 0;
+	int partMap = 0;
+	int aSCont = 0;
+	// Recebendo map
+	while(1) {
+		tcp->update();
+		if(tcp->receiveMessage(receiveBuff, sizeof(receiveBuff))) {
+			partMap ++;
+			int cont=1;
+				
+			for(int b = ctrlLoop; b < (ctrlLoop+30); b++) {
+				printf (".");
+				memcpy(&aux,receiveBuff+pos,sizeof(float));
+				pos += sizeof(float);
+				if (cont == 1)
+					_buffer[aSCont].x = (float)aux / 1000;
+				else if (cont == 2)
+					_buffer[aSCont].y = (float)aux / 1000;
+				else
+					_buffer[aSCont].z = (float)aux / 1000;
+						
+				cont++;
+				if (cont > 3){
+					cont = 1;
+					aSCont ++;
+				}
+
+			}
+
+			memcpy(&fim,sendBuff+0,sizeof(short int));
+			tcp->sendMessage(sendBuff,sizeof(short int));
+			printf("%i of 3 map received \n", partMap);
+			ctrlLoop = ctrlLoop+30;
+			if (partMap == 3)
+				break;
+		}
+ 	}
+}
+
+void Game::updateMap()
+{
+	receiveMap(buffer);	
+	receiveMap(color);	
+}
+
+void Game::updateRotation()
+{
+	char receiveBuff[10];
+	float aux;
+	while(1) {
+		tcp->update();
+		if(tcp->receiveMessage(receiveBuff, sizeof(receiveBuff))) {
+			memcpy(&aux,receiveBuff,sizeof(float));
+			rotate = aux / 1000;
+			break;
+		}
+	}
+}
+
 
 void Game::processEvents(const SDL_Event& event)
 {
@@ -135,7 +183,8 @@ void Game::processLogics(float secs)
 		objCamera.Move_Camera(cameraSpeed);
 		cameraSpeed+=speed;
 
-		rebuildMap();
+		//rebuildMap();
+		updateMap();
 
 		// Move light
 		//posicao[0] = objCamera.mPos.x;
@@ -143,6 +192,8 @@ void Game::processLogics(float secs)
 		posicao[2] = objCamera.mPos.z ;
 		glLightfv(GL_LIGHT0, GL_POSITION, posicao);
 
+		updateRotation();
+		/*
 		if(GetKeyState(VK_LEFT) & 0x80) 
 		{	
 			rotate -= 3.0f;
@@ -156,7 +207,7 @@ void Game::processLogics(float secs)
 			if (rotate > 360)
 				rotate = 0;
 		}
-
+		*/
 		// Check collision
 		colision();
 	}
@@ -168,6 +219,11 @@ void Game::processLogics(float secs)
 
 	if (gameState == 0){
 		printf("GameOver");
+	
+		printf("desconectando\n");
+		tcp->disconnect();
+		delete(tcp);
+		gameState = 3;
 	}
 	/*
 	printf("POS [%.2f %.2f %.2f] VIEW [%.2f %.2f %.2f] UP [%.2f %.2f %.2f] \n",
@@ -176,6 +232,7 @@ void Game::processLogics(float secs)
 			objCamera.mUp.x,   objCamera.mUp.y,   objCamera.mUp.z);
 	*/
 }
+
 
 void Game::colision(){
 	for (int i=0; i<sA; i++){

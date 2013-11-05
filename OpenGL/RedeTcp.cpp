@@ -146,6 +146,7 @@ void RedeTcp::update() {
 
 		if(n > 0) { /*dados recebidos*/
 			In = (In+n)%bReceiveSize; /*posiciona In no buffer circular de acordo com numero de bytes 'n' recebidos*/
+
 		}
 	} while(n > 0);
 }
